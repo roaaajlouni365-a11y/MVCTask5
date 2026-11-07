@@ -1,0 +1,9 @@
+@{ ViewData["Title"] = "Employee Login"; }
+<h1>Employee Login</h1>
+<form asp-action="Login" method="post" class="col-md-5">
+    <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3"><label for="username" class="form-label">Username</label><input id="username" name="username" class="form-control" required autocomplete="username" /></div>
+    <div class="mb-3"><label for="password" class="form-label">Password</label><input id="password" name="password" type="password" class="form-control" required autocomplete="current-password" /></div>
+    <button class="btn btn-primary" type="submit">Sign in</button>
+</form>

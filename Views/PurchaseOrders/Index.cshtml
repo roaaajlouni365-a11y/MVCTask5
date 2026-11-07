@@ -1,0 +1,7 @@
+@model IEnumerable<UniversityCafeteriaManagement.Models.DatabaseFirst.PurchaseOrder>
+@{ ViewData["Title"] = "Purchase Orders"; }
+<h1>Purchase Orders</h1>
+<p><a asp-action="Create" class="btn btn-primary">Create order</a></p>
+<table class="table"><thead><tr><th>Order</th><th>Date</th><th>Supplier</th><th>Status</th><th>Total</th><th></th></tr></thead><tbody>
+@foreach (var order in Model) { <tr><td>@order.Id</td><td>@order.OrderDate.ToLocalTime().ToString("g")</td><td>@order.Supplier.Name</td><td>@order.Status</td><td>@order.Items.Sum(x => x.Quantity * x.UnitPrice).ToString("C")</td><td><a asp-action="Details" asp-route-id="@order.Id">Details</a></td></tr> }
+</tbody></table>
