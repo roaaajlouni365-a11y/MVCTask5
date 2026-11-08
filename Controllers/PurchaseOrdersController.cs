@@ -1,70 +1,149 @@
+
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using UniversityCafeteriaManagement.Data;
-using UniversityCafeteriaManagement.Models.DatabaseFirst;
-using UniversityCafeteriaManagement.Models.PurchaseOrders;
+using CafeteriaManagement.Models;
 
-namespace UniversityCafeteriaManagement.Controllers;
-
-[Authorize]
-public class PurchaseOrdersController(CafeteriaDbContext db) : Controller
+public class PurchaseOrdersController : Controller
 {
-    public async Task<IActionResult> Index() => View(await db.PurchaseOrders.Include(x => x.Supplier).Include(x => x.Items).OrderByDescending(x => x.OrderDate).ToListAsync());
+    private readonly CafeteriaDbContext _context;
 
-    public async Task<IActionResult> Create()
+    public PurchaseOrdersController(CafeteriaDbContext context)
     {
-        await LoadSuppliers();
-        ViewBag.Products = await db.Products.OrderBy(x => x.Name).ToListAsync();
-        return View(new PurchaseOrderCreateViewModel());
+        _context = context;
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(PurchaseOrderCreateViewModel input)
+    // GET: PURCHASEORDERS
+    public async Task<IActionResult> Index()    
     {
-        var lines = input.Lines.Where(x => x.ProductId > 0 && x.Quantity > 0).ToList();
-        if (lines.Count == 0) ModelState.AddModelError(nameof(input.Lines), "Add at least one product.");
-        if (lines.Select(x => x.ProductId).Distinct().Count() != lines.Count) ModelState.AddModelError(nameof(input.Lines), "Each product may appear once in an order.");
-        var products = await db.Products.Where(x => lines.Select(y => y.ProductId).Contains(x.Id)).ToListAsync();
-        if (products.Count != lines.Select(x => x.ProductId).Distinct().Count() || products.Any(x => x.SupplierId != input.SupplierId)) ModelState.AddModelError(nameof(input.Lines), "Select products supplied by the selected supplier.");
-        if (!ModelState.IsValid)
+        return View(await _context.PurchaseOrders.ToListAsync());
+    }
+
+    // GET: PURCHASEORDERS/Details/5
+    public async Task<IActionResult> Details(int? id)
+    {
+        if (id == null)
         {
-            await LoadSuppliers(); ViewBag.Products = await db.Products.OrderBy(x => x.Name).ToListAsync(); return View(input);
+            return NotFound();
         }
 
-        var order = new PurchaseOrder { SupplierId = input.SupplierId, OrderDate = DateTime.UtcNow, Status = "Pending" };
-        foreach (var line in lines)
+        var purchaseorder = await _context.PurchaseOrders
+            .FirstOrDefaultAsync(m => m.Id == id);
+        if (purchaseorder == null)
         {
-            var product = products.Single(x => x.Id == line.ProductId);
-            order.Items.Add(new PurchaseOrderItem { ProductId = product.Id, Quantity = line.Quantity, UnitPrice = product.Price });
+            return NotFound();
         }
-        db.PurchaseOrders.Add(order);
-        await db.SaveChangesAsync();
-        return RedirectToAction(nameof(Details), new { id = order.Id });
+
+        return View(purchaseorder);
     }
 
-    public async Task<IActionResult> Details(int id)
+    // GET: PURCHASEORDERS/Create
+    public IActionResult Create()
     {
-        var order = await db.PurchaseOrders.Include(x => x.Supplier).Include(x => x.Items).ThenInclude(x => x.Product).FirstOrDefaultAsync(x => x.Id == id);
-        return order is null ? NotFound() : View(order);
+        return View();
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Receive(int id)
+    // POST: PURCHASEORDERS/Create
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create([Bind("Id,OrderDate,Status,SupplierId,PurchaseOrderItems,Supplier")] PurchaseOrder purchaseorder)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync();
-        var order = await db.PurchaseOrders.Include(x => x.Items).FirstOrDefaultAsync(x => x.Id == id);
-        if (order is null) return NotFound();
-        if (order.Status != "Pending") { TempData["Error"] = "Only pending orders can be received."; return RedirectToAction(nameof(Details), new { id }); }
-        var quantities = order.Items.GroupBy(x => x.ProductId).ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
-        var products = await db.Products.Where(x => quantities.Keys.Contains(x.Id)).ToListAsync();
-        foreach (var product in products) product.Quantity = checked(product.Quantity + quantities[product.Id]);
-        order.Status = "Received";
-        await db.SaveChangesAsync();
-        await transaction.CommitAsync();
-        return RedirectToAction(nameof(Details), new { id });
+        if (ModelState.IsValid)
+        {
+            _context.Add(purchaseorder);
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
+        }
+        return View(purchaseorder);
     }
 
-    private async Task LoadSuppliers() => ViewBag.Suppliers = new SelectList(await db.Suppliers.OrderBy(x => x.Name).ToListAsync(), "Id", "Name");
+    // GET: PURCHASEORDERS/Edit/5
+    public async Task<IActionResult> Edit(int? id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        var purchaseorder = await _context.PurchaseOrders.FindAsync(id);
+        if (purchaseorder == null)
+        {
+            return NotFound();
+        }
+        return View(purchaseorder);
+    }
+
+    // POST: PURCHASEORDERS/Edit/5
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int? id, [Bind("Id,OrderDate,Status,SupplierId,PurchaseOrderItems,Supplier")] PurchaseOrder purchaseorder)
+    {
+        if (id != purchaseorder.Id)
+        {
+            return NotFound();
+        }
+
+        if (ModelState.IsValid)
+        {
+            try
+            {
+                _context.Update(purchaseorder);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!PurchaseOrderExists(purchaseorder.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            return RedirectToAction(nameof(Index));
+        }
+        return View(purchaseorder);
+    }
+
+    // GET: PURCHASEORDERS/Delete/5
+    public async Task<IActionResult> Delete(int? id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        var purchaseorder = await _context.PurchaseOrders
+            .FirstOrDefaultAsync(m => m.Id == id);
+        if (purchaseorder == null)
+        {
+            return NotFound();
+        }
+
+        return View(purchaseorder);
+    }
+
+    // POST: PURCHASEORDERS/Delete/5
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int? id)
+    {
+        var purchaseorder = await _context.PurchaseOrders.FindAsync(id);
+        if (purchaseorder != null)
+        {
+            _context.PurchaseOrders.Remove(purchaseorder);
+        }
+
+        await _context.SaveChangesAsync();
+        return RedirectToAction(nameof(Index));
+    }
+
+    private bool PurchaseOrderExists(int? id)
+    {
+        return _context.PurchaseOrders.Any(e => e.Id == id);
+    }
 }

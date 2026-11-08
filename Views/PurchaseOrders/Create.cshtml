@@ -1,42 +1,54 @@
-@model UniversityCafeteriaManagement.Models.PurchaseOrders.PurchaseOrderCreateViewModel
-@{ ViewData["Title"] = "Create Purchase Order"; var products = (IEnumerable<UniversityCafeteriaManagement.Models.DatabaseFirst.Product>)ViewBag.Products; }
-<h1>Create Purchase Order</h1>
-<form asp-action="Create" method="post">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="mb-3"><label asp-for="SupplierId" class="form-label">Supplier</label><select asp-for="SupplierId" asp-items="ViewBag.Suppliers" class="form-select"><option value="">Select a supplier</option></select></div>
-    <table class="table" id="lines"><thead><tr><th>Product</th><th>Quantity</th><th></th></tr></thead><tbody>
-    @for (var i = 0; i < Model.Lines.Count; i++) { <tr><td><select name="Lines[@i].ProductId" class="form-select"><option value="0">Select product</option>@foreach (var p in products) { <option value="@p.Id" data-supplier="@p.SupplierId">@p.Name — @p.Price.ToString("C")</option> }</select></td><td><input name="Lines[@i].Quantity" type="number" min="1" value="1" class="form-control" /></td><td><button type="button" class="btn btn-outline-danger remove">Remove</button></td></tr> }
-    </tbody></table>
-    <button type="button" id="add-line" class="btn btn-secondary">Add product</button>
-    <button type="submit" class="btn btn-primary">Create order</button>
-</form>
-@section Scripts {
-<script>
-const rows = document.querySelector('#lines tbody');
-const productOptions = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(products.Select(p => new { id = p.Id, name = p.Name, price = p.Price, supplierId = p.SupplierId })));
-function updateProducts() {
-  const supplier = document.querySelector('#SupplierId').value;
-  rows.querySelectorAll('select').forEach(select => {
-    const chosen = select.value;
-    select.innerHTML = '<option value="0">Select product</option>';
-    productOptions.filter(p => String(p.supplierId) === supplier).forEach(p => {
-      const option = new Option(`${p.name} — ${Number(p.price).toFixed(2)}`, p.id);
-      select.add(option);
-    });
-    select.value = chosen;
-  });
+@model CafeteriaManagement.Models.PurchaseOrder
+
+@{
+    ViewData["Title"] = "Create";
 }
-function reindexRows() {
-  rows.querySelectorAll('tr').forEach((row, index) => row.querySelectorAll('[name]').forEach(input => input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${index}]`)));
-}
-document.querySelector('#SupplierId').addEventListener('change', updateProducts);
-document.querySelector('#add-line').addEventListener('click', () => {
-  const index = rows.children.length;
-  const row = document.createElement('tr');
-  row.innerHTML = `<td><select name="Lines[${index}].ProductId" class="form-select"></select></td><td><input name="Lines[${index}].Quantity" type="number" min="1" value="1" class="form-control"></td><td><button type="button" class="btn btn-outline-danger remove">Remove</button></td>`;
-  rows.append(row); updateProducts();
-});
-rows.addEventListener('click', event => { if (event.target.classList.contains('remove') && rows.children.length > 1) { event.target.closest('tr').remove(); reindexRows(); } });
-updateProducts();
-</script>
-}
+
+<h1>Create</h1>
+
+<h4>PurchaseOrder</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="form-group">
+                <label asp-for="OrderDate" class="control-label"></label>
+                <input asp-for="OrderDate" class="form-control" />
+                <span asp-validation-for="OrderDate" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Status" class="control-label"></label>
+                <input asp-for="Status" class="form-control" />
+                <span asp-validation-for="Status" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="SupplierId" class="control-label"></label>
+                <input asp-for="SupplierId" class="form-control" />
+                <span asp-validation-for="SupplierId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="PurchaseOrderItems" class="control-label"></label>
+                <input asp-for="PurchaseOrderItems" class="form-control" />
+                <span asp-validation-for="PurchaseOrderItems" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Supplier" class="control-label"></label>
+                <input asp-for="Supplier" class="form-control" />
+                <span asp-validation-for="Supplier" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
